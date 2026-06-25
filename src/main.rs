@@ -27,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/ws", get(ws::ws_handler))
-        .with_state(state.clone())
+        .with_state(state)
         .fallback(get(|| async move {
             Html(include_str!("../templates/index.html"))
         }));

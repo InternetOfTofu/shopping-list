@@ -87,12 +87,15 @@ async fn dispatch(text: &str, state: &SharedState) {
             id,
             name,
             where_to_buy,
+            description,
+            done,
         } => {
             let item = Item {
                 id,
                 name,
                 where_to_buy,
-                description: String::new(),
+                description,
+                done,
                 created_at: now.clone(),
                 modified_at: now.clone(),
             };
@@ -108,29 +111,35 @@ async fn dispatch(text: &str, state: &SharedState) {
         ClientMessage::Update { id, changes } => {
             let mut items = state.items.write().await;
             if let Some(item) = items.iter_mut().find(|i| i.id == id) {
-                if let Some(v) = changes.get("name").and_then(|v| v.as_str()) {
-                    item.name = v.to_string();
-                }
-                if let Some(v) = changes.get("whereToBuy").and_then(|v| v.as_str()) {
-                    item.where_to_buy = v.to_string();
-                }
-                if let Some(v) = changes.get("description").and_then(|v| v.as_str()) {
-                    item.description = v.to_string();
-                }
-                item.modified_at = now.clone();
+                let new_name = changes
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&item.name)
+                    .to_string();
+                let new_where = changes
+                    .get("whereToBuy")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&item.where_to_buy)
+                    .to_string();
+                let new_desc = changes
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&item.description)
+                    .to_string();
+                let new_modified = now.clone();
 
-                if let Err(e) = db::update_item(
-                    &conn,
-                    &item.id,
-                    &item.name,
-                    &item.where_to_buy,
-                    &item.description,
-                    &item.modified_at,
-                )
-                .await
+                if let Err(e) =
+                    db::update_item(&conn, &id, &new_name, &new_where, &new_desc, &new_modified)
+                        .await
                 {
                     tracing::error!("update failed: {e}");
+                    return;
                 }
+
+                item.name = new_name;
+                item.where_to_buy = new_where;
+                item.description = new_desc;
+                item.modified_at = new_modified;
             }
         }
 
@@ -141,6 +150,23 @@ async fn dispatch(text: &str, state: &SharedState) {
             }
 
             state.items.write().await.retain(|i| i.id != id);
+        }
+
+        ClientMessage::ToggleDone { id } => {
+            let mut items = state.items.write().await;
+            let new_modified = now.clone();
+            if let Some(item) = items.iter_mut().find(|i| i.id == id) {
+                let new_done = !item.done;
+
+                if let Err(e) = db::toggle_done_item(&conn, &item.id, new_done, &new_modified).await
+                {
+                    tracing::error!("toggle_done failed: {e}");
+                    return;
+                }
+
+                item.done = new_done;
+                item.modified_at = new_modified;
+            }
         }
     }
 

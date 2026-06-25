@@ -12,6 +12,7 @@ pub struct Item {
     #[serde(rename = "whereToBuy")]
     pub where_to_buy: String,
     pub description: String,
+    pub done: bool,
     #[serde(rename = "createdAt")]
     pub created_at: String,
     #[serde(rename = "modifiedAt")]
@@ -28,6 +29,10 @@ pub enum ClientMessage {
         #[serde(default)]
         #[serde(rename = "whereToBuy")]
         where_to_buy: String,
+        #[serde(default)]
+        description: String,
+        #[serde(default)]
+        done: bool,
     },
     #[serde(rename = "update")]
     Update {
@@ -36,6 +41,8 @@ pub enum ClientMessage {
     },
     #[serde(rename = "delete")]
     Delete { id: String },
+    #[serde(rename = "toggle_done")]
+    ToggleDone { id: String },
 }
 
 #[derive(Debug, Serialize)]

@@ -274,6 +274,52 @@
       50% { opacity: 0.4; }
     }
 
+    .item-card.done:not(.expanded) {
+      opacity: 0.50;
+      background: var(--bg);
+    }
+    .item-card.done .item-header__name {
+      text-decoration: line-through;
+      color: var(--text-hint);
+    }
+    .item-card.done .item-header__location {
+      opacity: 0.6;
+    }
+
+    .item-header__checkbox {
+      display: flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px; border-radius: 50%;
+      flex-shrink: 0; cursor: pointer;
+      transition: background 0.15s;
+      position: relative; overflow: hidden;
+    }
+    .item-header__checkbox:hover {
+      background: rgba(0,0,0,0.06);
+    }
+    .item-header__checkbox svg {
+      width: 24px; height: 24px;
+    }
+    .item-card.done .item-header__checkbox .checkbox-unchecked circle {
+      stroke: var(--text-disabled);
+    }
+    .item-header__checkbox .checkbox-unchecked circle {
+      fill: none;
+      stroke: var(--text-hint);
+      stroke-width: 2;
+    }
+    .item-header__checkbox .checkbox-checked circle {
+      fill: var(--primary);
+      stroke: var(--primary);
+      stroke-width: 2;
+    }
+    .item-header__checkbox .checkbox-checked path {
+      fill: none;
+      stroke: var(--on-primary);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     .sync-chip {
       display: inline-flex; align-items: center; gap: 4px;
       font-size: 0.65rem; font-weight: 500;
@@ -319,11 +365,10 @@
     .item-card.expanded .item-header__chevron { transform: rotate(180deg); }
 
     .item-timestamps {
-      display: flex; gap: 16px; padding: 0 16px 12px;
-      font-size: 0.68rem; font-weight: 400;
-      color: var(--text-hint); font-style: italic; letter-spacing: 0.02em;
+      display: flex; gap: 16px; padding: 8px 0 4px;
+      font-size: 0.75rem; font-weight: 400;
+      color: var(--text-secondary); letter-spacing: 0.02em;
     }
-    @media (min-width: 768px) { .item-timestamps { padding: 0 20px 14px; font-size: 0.7rem; } }
     .item-timestamps span { white-space: nowrap; }
 
     .item-detail {
@@ -587,16 +632,19 @@
 
       function getSortedItems(list) {
         var sorted = list.slice();
-        switch (sortBy) {
-          case 'name-asc': sorted.sort(function (a, b) { return a.name.localeCompare(b.name); }); break;
-          case 'name-desc': sorted.sort(function (a, b) { return b.name.localeCompare(a.name); }); break;
-          case 'where-asc': sorted.sort(function (a, b) { return (a.whereToBuy || '').localeCompare(b.whereToBuy || ''); }); break;
-          case 'where-desc': sorted.sort(function (a, b) { return (b.whereToBuy || '').localeCompare(a.whereToBuy || ''); }); break;
-          case 'created-asc': sorted.sort(function (a, b) { return new Date(a.createdAt) - new Date(b.createdAt); }); break;
-          case 'created-desc': sorted.sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); }); break;
-          case 'modified-asc': sorted.sort(function (a, b) { return new Date(a.modifiedAt) - new Date(b.modifiedAt); }); break;
-          case 'modified-desc': default: sorted.sort(function (a, b) { return new Date(b.modifiedAt) - new Date(a.modifiedAt); }); break;
-        }
+        sorted.sort(function (a, b) {
+          if (a.done !== b.done) return a.done ? 1 : -1;
+          switch (sortBy) {
+            case 'name-asc': return a.name.localeCompare(b.name);
+            case 'name-desc': return b.name.localeCompare(a.name);
+            case 'where-asc': return (a.whereToBuy || '').localeCompare(b.whereToBuy || '');
+            case 'where-desc': return (b.whereToBuy || '').localeCompare(a.whereToBuy || '');
+            case 'created-asc': return new Date(a.createdAt) - new Date(b.createdAt);
+            case 'created-desc': return new Date(b.createdAt) - new Date(a.createdAt);
+            case 'modified-asc': return new Date(a.modifiedAt) - new Date(b.modifiedAt);
+            case 'modified-desc': default: return new Date(b.modifiedAt) - new Date(a.modifiedAt);
+          }
+        });
         return sorted;
       }
 
@@ -654,18 +702,20 @@
         var syncBadge = syncStatus === 'pending' ? '<span class="sync-chip">Syncing&hellip;</span>'
                       : syncStatus === 'deleting' ? '<span class="sync-chip">Deleting&hellip;</span>'
                       : '';
+        var doneSvg = item.done
+          ? '<svg class="checkbox-checked" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>'
+          : '<svg class="checkbox-unchecked" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>';
         return (
-          '<div class="item-card' + (isExpanded ? ' expanded' : '') + '" data-id="' + item.id + '" id="card-' + item.id + '" data-sync-status="' + syncStatus + '">' +
+          '<div class="item-card' + (isExpanded ? ' expanded' : '') + (item.done ? ' done' : '') + '" data-id="' + item.id + '" id="card-' + item.id + '" data-sync-status="' + syncStatus + '">' +
             '<div class="item-header" data-action="toggle" data-id="' + item.id + '">' +
+              '<button class="item-header__checkbox ripple" data-action="toggleDone" data-id="' + item.id + '" aria-label="' + (item.done ? 'Mark undone' : 'Mark done') + '">' +
+                doneSvg +
+              '</button>' +
               '<div class="item-header__info">' +
                 '<div class="item-header__name-row"><span class="item-header__name">' + name + '</span>' + syncBadge + '</div>' +
                 (where ? '<div class="item-header__meta"><span class="item-header__location"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>' + where + '</span></div>' : '') +
               '</div>' +
               '<svg class="item-header__chevron" viewBox="0 0 24 24"><path d="M7.41 7.84L12 12.42l4.59-4.58L18 9.25l-6 6-6-6z"/></svg>' +
-            '</div>' +
-            '<div class="item-timestamps">' +
-              '<span title="' + createdFull + '">Created: ' + createdRel + '</span>' +
-              '<span title="' + modifiedFull + '">Modified: ' + modifiedRel + '</span>' +
             '</div>' +
             '<div class="item-detail">' +
               '<div class="item-detail__inner">' +
@@ -683,6 +733,10 @@
                 '<div class="form-field">' +
                   '<label class="form-field__label" for="edit-desc-' + item.id + '">Description</label>' +
                   '<textarea class="form-field__textarea" id="edit-desc-' + item.id + '" maxlength="500" placeholder="Add a note&hellip;">' + escapeHTML(item.description) + '</textarea>' +
+                '</div>' +
+                '<div class="item-timestamps">' +
+                  '<span title="' + createdFull + '">Created: ' + createdRel + '</span>' +
+                  '<span title="' + modifiedFull + '">Modified: ' + modifiedRel + '</span>' +
                 '</div>' +
                 '<div class="item-detail__actions">' +
                   '<button class="btn btn--primary ripple" data-action="save" data-id="' + item.id + '">Save</button>' +
@@ -787,7 +841,7 @@
         var whereToBuy = dom.addWhere.value.trim();
         var now = new Date().toISOString();
         var id = generateId();
-        items.unshift({ id: id, name: name, whereToBuy: whereToBuy, description: '', createdAt: now, modifiedAt: now, _syncStatus: 'pending' });
+        items.unshift({ id: id, name: name, whereToBuy: whereToBuy, description: '', done: false, createdAt: now, modifiedAt: now, _syncStatus: 'pending' });
         dom.addName.value = '';
         dom.addWhere.value = '';
         dom.addName.focus();
@@ -845,8 +899,19 @@
           }
           undoItem = null;
           render();
-          ws.send(JSON.stringify({ type: 'add', id: undoSelf.id, name: undoSelf.name, whereToBuy: undoSelf.whereToBuy }));
+          ws.send(JSON.stringify({ type: 'add', id: undoSelf.id, name: undoSelf.name, whereToBuy: undoSelf.whereToBuy, description: undoSelf.description || '', done: undoSelf.done }));
         });
+      }
+
+      function toggleDone(id) {
+        var idx = items.findIndex(function (i) { return i.id === id; });
+        if (idx === -1) return;
+        items[idx].done = !items[idx].done;
+        items[idx].modifiedAt = new Date().toISOString();
+        items[idx]._syncStatus = 'pending';
+        expandedId = null;
+        render();
+        ws.send(JSON.stringify({ type: 'toggle_done', id: id }));
       }
 
       function toggleItem(id) {
@@ -904,7 +969,7 @@
         serverItems.forEach(function (si) { serverMap[si.id] = si; });
 
         var merged = serverItems.map(function (si) {
-          var synced = { id: si.id, name: si.name, whereToBuy: si.whereToBuy, description: si.description, createdAt: si.createdAt, modifiedAt: si.modifiedAt, _syncStatus: 'synced' };
+          var synced = { id: si.id, name: si.name, whereToBuy: si.whereToBuy, description: si.description, done: si.done, createdAt: si.createdAt, modifiedAt: si.modifiedAt, _syncStatus: 'synced' };
           return synced;
         });
 
@@ -991,6 +1056,7 @@
           case 'save': saveItem(id); break;
           case 'cancel': cancelEdit(id); break;
           case 'delete': deleteItem(id); break;
+          case 'toggleDone': toggleDone(id); break;
         }
       }
 
