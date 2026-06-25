@@ -24,6 +24,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract tag version
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Enforce version matches Cargo.toml
+        run: |
+          CARGO_VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$CARGO_VERSION" != "$VERSION" ]; then
+            echo "::error::Cargo.toml version ($CARGO_VERSION) does not match tag ($VERSION)"
+            exit 1
+          fi
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1.16
 
       - name: Install cross-compiler (linux arm64)
@@ -41,12 +55,12 @@ jobs:
       - name: Strip
         run: strip target/${{ matrix.target }}/release/shopping-list
 
-      - name: Package
+      - name: Rename binary
         run: |
-          cd target/${{ matrix.target }}/release
-          tar -czf shopping-list-${{ matrix.suffix }}.tar.gz shopping-list
+          mv target/${{ matrix.target }}/release/shopping-list \
+             shopping-list-$VERSION-${{ matrix.suffix }}
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: target/${{ matrix.target }}/release/shopping-list-${{ matrix.suffix }}.tar.gz
+          files: shopping-list-${{ env.VERSION }}-${{ matrix.suffix }}
           generate_release_notes: true
